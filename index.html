@@ -103,7 +103,7 @@
       // Додаємо timestamp, щоб браузер не кешував старий json
       async function fetchData() {
         try {
-          const response = await fetch(`https://raw.githubusercontent.com/SANFY666/manga_tracker/main/data.json?t=${new Date().getTime()}`);
+          const response = await fetch(`data.json?t=${new Date().getTime()}`);
           const data = await response.json();
 
           const container = document.getElementById("mangas-container");
