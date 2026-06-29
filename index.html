@@ -8,9 +8,9 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
         .container { max-width: 900px; margin: 0 auto; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .btn { background-color: #bb86fc; color: #000; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn { background-color: #bb86fc; color: #000; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn:hover { background-color: #9965f4; }
-        .tracker-card { background-color: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 15px; position: relative; }
+        .tracker-card { background-color: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 15px; position: relative; border: 1px solid #333; }
         .platform { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #333; }
         .platform a { color: #bb86fc; text-decoration: none; font-weight: 500; border-bottom: 1px dashed transparent; transition: 0.2s; }
         .platform a:hover { border-bottom: 1px dashed #bb86fc; }
@@ -20,6 +20,9 @@
         .add-manga-panel { background: #2c2c2c; padding: 20px; border-radius: 12px; margin-bottom: 25px; }
         .add-manga-panel input { width: 100%; box-sizing: border-box; margin-bottom: 10px; padding: 10px; border-radius: 6px; border: 1px solid #555; background: #1e1e1e; color: white; }
         
+        .delete-btn { background-color: #cf6679; color: #000; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: 0.2s; }
+        .delete-btn:hover { background-color: #ff758c; }
+
         #login-section, #tracker-section { display: none; }
     </style>
 </head>
@@ -53,7 +56,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        // Додано імпорт deleteDoc
+        import { getFirestore, doc, setDoc, collection, getDocs, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // ВСТАВ СВІЙ FIREBASE CONFIG!
         const firebaseConfig = {
@@ -103,7 +107,6 @@
         async function loadPersonalData() {
             container.innerHTML = '<p>Завантаження даних...</p>';
             try {
-                // Завантажуємо лише особисті тайтли з бази
                 const customMangasRef = collection(db, "users", currentUser.uid, "custom_mangas");
                 const customSnap = await getDocs(customMangasRef);
                 const customMangas = [];
@@ -127,6 +130,7 @@
         function createCardHTML(manga) {
             const card = document.createElement('div');
             card.className = 'tracker-card';
+            card.id = `card-${manga.id}`;
             
             let senkuroHTML = '';
             if (manga.senkuroUrl) {
@@ -146,8 +150,12 @@
                 </div>`;
             }
 
+            // Додано структуру з кнопкою видалення
             card.innerHTML = `
-                <h3 style="margin-top:0; color:#fff;">${manga.name}</h3>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <h3 style="margin-top:0; color:#fff;">${manga.name}</h3>
+                    <button class="delete-btn" id="delete-${manga.id}" title="Видалити тайтл">❌</button>
+                </div>
                 ${senkuroHTML}
                 ${rutokiHTML}
                 <div class="user-progress">
@@ -160,6 +168,7 @@
             `;
             container.appendChild(card);
 
+            // Обробник збереження прогресу
             document.getElementById(`save-${manga.id}`).addEventListener('click', async () => {
                 const val = document.getElementById(`input-${manga.id}`).value;
                 const btn = document.getElementById(`save-${manga.id}`);
@@ -169,6 +178,26 @@
                 
                 btn.innerText = '✓'; 
                 setTimeout(() => btn.innerText = 'Зберегти', 1500);
+            });
+
+            // Обробник видалення тайтлу
+            document.getElementById(`delete-${manga.id}`).addEventListener('click', async () => {
+                if (confirm(`Ви впевнені, що хочете видалити "${manga.name}" зі свого списку?`)) {
+                    try {
+                        const btn = document.getElementById(`delete-${manga.id}`);
+                        btn.innerText = '...';
+                        
+                        await deleteDoc(doc(db, "users", currentUser.uid, "custom_mangas", manga.id));
+                        
+                        // Плавно приховуємо та видаляємо картку з екрана
+                        card.style.opacity = '0.5';
+                        setTimeout(() => card.remove(), 300);
+                        
+                    } catch (error) {
+                        console.error("Помилка видалення:", error);
+                        alert("Не вдалося видалити тайтл.");
+                    }
+                }
             });
         }
 
@@ -190,7 +219,7 @@
                 senkuroChapters: '...',
                 rutokiChapters: '...',
                 currentRead: 0,
-                lastChecked: 0 // Для таймера в боті
+                lastChecked: 0
             });
 
             document.getElementById('custom-name').value = '';
