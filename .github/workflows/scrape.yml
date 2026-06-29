@@ -1,0 +1,35 @@
+name: Update Manga Chapters
+
+on:
+  schedule:
+    - cron: '0 */2 * * *' # Запуск кожні 2 години
+  workflow_dispatch: # Дозволяє запустити скрипт вручну кнопкою в інтерфейсі GitHub
+
+jobs:
+  scrape-and-update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run Scraper
+        run: node scraper.js
+
+      - name: Commit and Push data.json
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          git add data.json
+          git commit -m "Автоматичне оновлення глав" || exit 0
+          git push
