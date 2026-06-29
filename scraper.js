@@ -8,12 +8,12 @@ const mangasConfig = [
         rutoki: 'https://rutoki.com/manga/nm4700573'
     },
     {
-        name: 'Guide to Beating the Weaklings Tower',
+        name: 'Guide to Beating Weaklings Tower',
         senkuro: 'https://senkuro.com/manga/how-to-conquer-the-tower-of-hanamja/chapters',
         rutoki: 'https://rutoki.com/manga/dy5526578'
     },
     {
-        name: 'The Demon King Has Too Many Heroes',
+        name: 'The Demon King Has Many Heroes',
         senkuro: 'https://senkuro.com/manga/the-demon-king-overrun-by-heroes/chapters',
         rutoki: 'https://rutoki.com/manga/rp5453562'
     },
@@ -21,7 +21,18 @@ const mangasConfig = [
         name: 'Eleceed',
         senkuro: 'https://senkuro.com/manga/illegsideu/chapters',
         rutoki: 'https://rutoki.com/manga/nz333558'
+    },
+    {
+        name: 'Pick Me Up!',
+        senkuro: 'https://senkuro.com/manga/pick-me-up/chapters',
+        rutoki: 'https://rutoki.com/manga/oq1837559'
+    },
+    {
+        name: 'The Villain Wants to Live',
+        senkuro: 'https://senkuro.com/manga/a-villain-s-will-to-survive/chapters',
+        rutoki: 'https://rutoki.com/manga/pv4298569'
     }
+    
     // Додавай сюди стільки блоків, скільки потрібно (хоч 10, хоч 50)
 ];
 
