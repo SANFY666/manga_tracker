@@ -1,138 +1,172 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="uk">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Трекер Глав</title>
     <style>
-      body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #121212;
-        color: #e0e0e0;
-        margin: 0;
-        padding: 20px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
-      .container {
-        width: 100%;
-        max-width: 900px;
-      }
-      .header-controls {
-        text-align: center;
-        margin-bottom: 30px;
-      }
-      .tracker-card {
-        background-color: #1e1e1e;
-        padding: 25px;
-        border-radius: 12px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-        margin-bottom: 20px;
-        width: 100%;
-        box-sizing: border-box;
-      }
-      h2 {
-        margin-top: 0;
-        color: #ffffff;
-        text-align: center;
-      }
-      .platform {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: #2c2c2c;
-        padding: 15px;
-        margin: 10px 0;
-        border-radius: 8px;
-        font-size: 1.1rem;
-      }
-      .platform-name {
-        font-weight: 600;
-        color: #bb86fc;
-      }
-      .chapter-count {
-        font-weight: bold;
-        font-size: 1.3rem;
-        color: #03dac6;
-      }
-      .last-updated {
-        font-size: 0.9rem;
-        color: #888;
-        margin-top: 10px;
-      }
-      .update-btn {
-        background-color: #bb86fc;
-        color: #000;
-        border: none;
-        padding: 12px 30px;
-        border-radius: 6px;
-        font-size: 1rem;
-        font-weight: bold;
-        cursor: pointer;
-        transition: background 0.3s;
-      }
-      .update-btn:hover {
-        background-color: #9965f4;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 20px;
-      }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .btn { background-color: #bb86fc; color: #000; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .btn:hover { background-color: #9965f4; }
+        .tracker-card { background-color: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 15px; }
+        .platform { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #333; }
+        .user-progress { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #555; display: flex; align-items: center; justify-content: space-between; }
+        .user-progress input { width: 60px; padding: 5px; background: #2c2c2c; color: white; border: 1px solid #555; border-radius: 4px; }
+        #login-section, #tracker-section { display: none; }
     </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="header-controls">
-        <div class="last-updated">
-          Останнє сканування ботом: <span id="time-val">Завантаження...</span>
-        </div>
-        <br />
-        <button class="update-btn" onclick="fetchData()">
-          🔄 Завантажити останні дані
-        </button>
-      </div>
+</head>
+<body>
 
-      <div class="grid" id="mangas-container">
-        <!-- Картки будуть додані сюди через JavaScript -->
-      </div>
+    <div class="container">
+        <div class="header">
+            <h2>📚 Манхва Трекер</h2>
+            <div id="auth-controls">
+                <button class="btn" id="login-btn">Увійти через Google</button>
+                <button class="btn" id="logout-btn" style="display:none;">Вийти</button>
+            </div>
+        </div>
+
+        <div id="login-message">Будь ласка, авторизуйтесь, щоб бачити свій прогрес.</div>
+
+        <div id="tracker-section">
+            <div style="margin-bottom: 20px; color: #888;">
+                Останнє сканування ботом: <span id="time-val">Завантаження...</span>
+            </div>
+            <div id="mangas-container"></div>
+        </div>
     </div>
 
-    <script>
-      // Додаємо timestamp, щоб браузер не кешував старий json
-      async function fetchData() {
-        try {
-          const response = await fetch(`data.json?t=${new Date().getTime()}`);
-          const data = await response.json();
+    <!-- Firebase SDK (Type="module" обов'язково) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-          const container = document.getElementById("mangas-container");
-          container.innerHTML = "";
+        // ТВОЯ КОНФІГУРАЦІЯ FIREBASE (Встав сюди свої ключі з консолі Firebase)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDTNL0XJRclOR9TF5QCicTTgCDUf4A27M8",
+            authDomain: "manga-tracker-a0cf9.firebaseapp.com",
+            projectId: "manga-tracker-a0cf9",
+            storageBucket: "manga-tracker-a0cf9.firebasestorage.app",
+            messagingSenderId: "148924633365",
+            appId: "1:148924633365:web:283272abe6720b6886591c",
+            measurementId: "G-B4CD86SKTX"
+        };
 
-          data.mangas.forEach((manga) => {
-            container.innerHTML += `
-                        <div class="tracker-card">
-                            <h2>${manga.name}</h2>
-                            <div class="platform">
-                                <span class="platform-name">Senkuro</span>
-                                <span class="chapter-count">${manga.senkuroChapters}</span>
-                            </div>
-                            <div class="platform">
-                                <span class="platform-name">Rutoki</span>
-                                <span class="chapter-count">${manga.rutokiChapters}</span>
-                            </div>
-                        </div>
-                    `;
-          });
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
 
-          document.getElementById("time-val").innerText = data.lastUpdated;
-        } catch (error) {
-          document.getElementById("mangas-container").innerHTML =
-            '<p style="text-align:center">Дані ще збираються або сталася помилка. Зачекайте першого запуску GitHub Actions.</p>';
+        let currentUser = null;
+        let mangaData = []; // Дані з data.json
+
+        // DOM Елементи
+        const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const trackerSection = document.getElementById('tracker-section');
+        const loginMessage = document.getElementById('login-message');
+        const container = document.getElementById('mangas-container');
+
+        // Авторизація
+        loginBtn.addEventListener('click', () => signInWithPopup(auth, provider));
+        logoutBtn.addEventListener('click', () => signOut(auth));
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                loginBtn.style.display = 'none';
+                logoutBtn.style.display = 'block';
+                loginMessage.style.display = 'none';
+                trackerSection.style.display = 'block';
+                await loadTrackerData();
+            } else {
+                currentUser = null;
+                loginBtn.style.display = 'block';
+                logoutBtn.style.display = 'none';
+                loginMessage.style.display = 'block';
+                trackerSection.style.display = 'none';
+            }
+        });
+
+        // Завантаження глобальних даних з GitHub та особистих з Firestore
+        async function loadTrackerData() {
+            try {
+                // 1. Беремо актуальні глави з твого бота
+                const response = await fetch(`data.json?t=${new Date().getTime()}`);
+                const globalData = await response.json();
+                mangaData = globalData.mangas;
+                document.getElementById('time-val').innerText = globalData.lastUpdated;
+
+                // 2. Беремо прогрес користувача з бази даних
+                const userDocRef = doc(db, "users", currentUser.uid);
+                const userDoc = await getDoc(userDocRef);
+                const userProgress = userDoc.exists() ? userDoc.data() : {};
+
+                renderMangas(userProgress);
+            } catch (error) {
+                console.error("Помилка завантаження даних", error);
+            }
         }
-      }
 
-      fetchData();
+        // Відображення карток
+        function renderMangas(userProgress) {
+            container.innerHTML = ''; 
+            
+            mangaData.forEach((manga, index) => {
+                // Шукаємо, чи читав юзер цю манхву раніше (за ім'ям)
+                const currentRead = userProgress[manga.name] || 0;
+                
+                const card = document.createElement('div');
+                card.className = 'tracker-card';
+                card.innerHTML = `
+                    <h3 style="margin-top:0; color:#fff;">${manga.name}</h3>
+                    <div class="platform">
+                        <span style="color: #bb86fc;">Senkuro (Вийшло)</span>
+                        <span style="color: #03dac6; font-weight:bold;">${manga.senkuroChapters}</span>
+                    </div>
+                    <div class="platform">
+                        <span style="color: #bb86fc;">Rutoki (Вийшло)</span>
+                        <span style="color: #03dac6; font-weight:bold;">${manga.rutokiChapters}</span>
+                    </div>
+                    <div class="user-progress">
+                        <span>Прочитано глав:</span>
+                        <div>
+                            <input type="number" id="input-${index}" value="${currentRead}" min="0">
+                            <button class="btn" style="padding: 5px 10px; font-size: 0.9em;" id="save-${index}">Зберегти</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+
+                // Додаємо обробник для кнопки збереження
+                document.getElementById(`save-${index}`).addEventListener('click', () => saveProgress(manga.name, index));
+            });
+        }
+
+        // Збереження прогресу в базу даних
+        async function saveProgress(mangaName, index) {
+            const inputValue = document.getElementById(`input-${index}`).value;
+            const btn = document.getElementById(`save-${index}`);
+            
+            btn.innerText = '...';
+            
+            try {
+                const userDocRef = doc(db, "users", currentUser.uid);
+                // merge: true оновлює лише одне поле, не затираючи інші тайтли
+                await setDoc(userDocRef, {
+                    [mangaName]: parseInt(inputValue)
+                }, { merge: true });
+                
+                btn.innerText = 'Збережено!';
+                setTimeout(() => btn.innerText = 'Зберегти', 2000);
+            } catch (error) {
+                console.error("Помилка збереження", error);
+                btn.innerText = 'Помилка';
+            }
+        }
     </script>
-  </body>
+</body>
 </html>
