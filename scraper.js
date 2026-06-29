@@ -16,6 +16,11 @@ const mangasConfig = [
         name: 'The Demon King Has Too Many Heroes',
         senkuro: 'https://senkuro.com/manga/the-demon-king-overrun-by-heroes/chapters',
         rutoki: 'https://rutoki.com/manga/rp5453562'
+    },
+    {
+        name: 'Eleceed',
+        senkuro: 'https://senkuro.com/manga/illegsideu/chapters',
+        rutoki: 'https://rutoki.com/manga/nz333558'
     }
     // Додавай сюди стільки блоків, скільки потрібно (хоч 10, хоч 50)
 ];
