@@ -1,18 +1,11 @@
 const puppeteer = require('puppeteer');
-const fs = require('fs');
 const admin = require('firebase-admin');
 
-// Підключення до Firebase за допомогою ключа з GitHub Secrets
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
 });
 const db = admin.firestore();
-
-// Твій глобальний список (як і раніше)
-const mangasConfig = [
-    { name: 'Raising Villains', senkuro: 'https://senkuro.com/manga/raising-villains-the-right-way/chapters', rutoki: 'https://rutoki.com/manga/nm4700573' }
-];
 
 (async () => {
     console.log('Запуск браузера...');
@@ -24,31 +17,7 @@ const mangasConfig = [
         else req.continue();
     });
 
-    // 1. ОНОВЛЕННЯ ГЛОБАЛЬНИХ ТАЙТЛІВ (data.json)
-    const results = [];
-    for (const manga of mangasConfig) {
-        let senkuroText = 'Помилка', rutokiText = 'Помилка';
-        try {
-            await page.goto(manga.senkuro, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await page.waitForSelector('.project-stats__name', { timeout: 10000 });
-            senkuroText = await page.$eval('#app > div > section > div.container > div > section > article.project-stats > div > div:nth-child(3) > div.project-stats__body > div.project-stats__name', el => el.textContent.trim());
-        } catch (e) {}
-
-        try {
-            await page.goto(manga.rutoki, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await page.waitForSelector('#c-c-mm-i-r-read > div', { timeout: 10000 });
-            let rawRutoki = await page.$eval('#c-c-mm-i-r-read > div', el => el.textContent.trim());
-            const match = rawRutoki.match(/\d+/);
-            if (match) rutokiText = match[0];
-        } catch (e) {}
-
-        results.push({ name: manga.name, senkuroChapters: senkuroText, rutokiChapters: rutokiText });
-    }
-    fs.writeFileSync('data.json', JSON.stringify({ mangas: results, lastUpdated: new Date().toLocaleString('uk-UA') }, null, 2));
-    console.log('Глобальні дані оновлено!');
-
-    // 2. ОНОВЛЕННЯ ОСОБИСТИХ ТАЙТЛІВ КОРИСТУВАЧІВ З FIREBASE
-    console.log('Починаємо сканування особистих тайтлів...');
+    console.log('Починаємо сканування тайтлів користувачів...');
     const usersSnap = await db.collection('users').get();
     
     for (const userDoc of usersSnap.docs) {
@@ -59,6 +28,18 @@ const mangasConfig = [
             const manga = mangaDoc.data();
             let senkuroText = manga.senkuroChapters || '...';
             let rutokiText = manga.rutokiChapters || '...';
+            
+            // ПЕРЕВІРКА ЧАСУ (2 години = 7 200 000 мілісекунд)
+            const now = Date.now();
+            const lastChecked = manga.lastChecked || 0;
+            
+            // Якщо пройшло менше 2 годин і дані вже є - пропускаємо
+            if (now - lastChecked < 7200000 && (senkuroText !== '...' || rutokiText !== '...')) {
+                console.log(`⏳ Пропускаємо "${manga.name}" (оновлювалось менше 2 годин тому)`);
+                continue;
+            }
+
+            console.log(`🔍 Скануємо: "${manga.name}"`);
 
             if (manga.senkuroUrl && manga.senkuroUrl.includes('senkuro.com')) {
                 try {
@@ -78,10 +59,11 @@ const mangasConfig = [
                 } catch(e) { console.log(`Помилка Rutoki для ${manga.name}`); }
             }
 
-            // Записуємо нові глави назад в базу користувачу
+            // Записуємо нові глави та свіжий час перевірки
             await mangaDoc.ref.update({
                 senkuroChapters: senkuroText,
-                rutokiChapters: rutokiText
+                rutokiChapters: rutokiText,
+                lastChecked: now
             });
         }
     }
