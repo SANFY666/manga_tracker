@@ -10,11 +10,16 @@
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .btn { background-color: #bb86fc; color: #000; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
         .btn:hover { background-color: #9965f4; }
-        .tracker-card { background-color: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 15px; }
+        .tracker-card { background-color: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 15px; position: relative; }
         .platform { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #333; }
         .user-progress { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #555; display: flex; align-items: center; justify-content: space-between; }
         .user-progress input { width: 60px; padding: 5px; background: #2c2c2c; color: white; border: 1px solid #555; border-radius: 4px; }
+        
+        .add-manga-panel { background: #2c2c2c; padding: 20px; border-radius: 12px; margin-bottom: 25px; }
+        .add-manga-panel input { width: 100%; box-sizing: border-box; margin-bottom: 10px; padding: 10px; border-radius: 6px; border: 1px solid #555; background: #1e1e1e; color: white; }
+        
         #login-section, #tracker-section { display: none; }
+        .badge { background: #03dac6; color: #000; padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; margin-left: 10px; }
     </style>
 </head>
 <body>
@@ -28,25 +33,31 @@
             </div>
         </div>
 
-        <div id="login-message">Будь ласка, авторизуйтесь, щоб бачити свій прогрес.</div>
+        <div id="login-message">Будь ласка, авторизуйтесь, щоб бачити свій прогрес та додавати тайтли.</div>
 
         <div id="tracker-section">
-            <div style="margin-bottom: 20px; color: #888;">
-                Останнє сканування ботом: <span id="time-val">Завантаження...</span>
+            <div class="add-manga-panel">
+                <h3>➕ Додати власний тайтл</h3>
+                <input type="text" id="custom-name" placeholder="Назва манхви (обов'язково)">
+                <input type="url" id="custom-senkuro" placeholder="Посилання на Senkuro (якщо є)">
+                <input type="url" id="custom-rutoki" placeholder="Посилання на Rutoki (якщо є)">
+                <button class="btn" id="save-custom-btn" style="width: 100%;">Додати в кабінет</button>
+                <p style="font-size: 0.85rem; color: #888; margin-top: 10px;">*Бот просканує ваші посилання протягом 2 годин і оновлюватиме їх автоматично.</p>
             </div>
+
+            <h2 style="border-bottom: 2px solid #bb86fc; padding-bottom: 10px;">Ваш список</h2>
             <div id="mangas-container"></div>
         </div>
     </div>
 
-    <!-- Firebase SDK (Type="module" обов'язково) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ТВОЯ КОНФІГУРАЦІЯ FIREBASE (Встав сюди свої ключі з консолі Firebase)
+        // !!! ВСТАВ СВІЙ FIREBASE CONFIG ТУТ !!!
         const firebaseConfig = {
-            apiKey: "AIzaSyDTNL0XJRclOR9TF5QCicTTgCDUf4A27M8",
+            apiKey: "AIzaSyDTNL0XJRclOR9TF5QCIcTTgCDUf4A27M8",
             authDomain: "manga-tracker-a0cf9.firebaseapp.com",
             projectId: "manga-tracker-a0cf9",
             storageBucket: "manga-tracker-a0cf9.firebasestorage.app",
@@ -61,16 +72,15 @@
         const provider = new GoogleAuthProvider();
 
         let currentUser = null;
-        let mangaData = []; // Дані з data.json
 
-        // DOM Елементи
+        // Елементи
         const loginBtn = document.getElementById('login-btn');
         const logoutBtn = document.getElementById('logout-btn');
         const trackerSection = document.getElementById('tracker-section');
         const loginMessage = document.getElementById('login-message');
         const container = document.getElementById('mangas-container');
+        const saveCustomBtn = document.getElementById('save-custom-btn');
 
-        // Авторизація
         loginBtn.addEventListener('click', () => signInWithPopup(auth, provider));
         logoutBtn.addEventListener('click', () => signOut(auth));
 
@@ -81,7 +91,7 @@
                 logoutBtn.style.display = 'block';
                 loginMessage.style.display = 'none';
                 trackerSection.style.display = 'block';
-                await loadTrackerData();
+                await loadAllData();
             } else {
                 currentUser = null;
                 loginBtn.style.display = 'block';
@@ -91,82 +101,114 @@
             }
         });
 
-        // Завантаження глобальних даних з GitHub та особистих з Firestore
-        async function loadTrackerData() {
+        async function loadAllData() {
+            container.innerHTML = '<p>Завантаження даних...</p>';
             try {
-                // 1. Беремо актуальні глави з твого бота
+                // 1. Глобальні дані з data.json
                 const response = await fetch(`data.json?t=${new Date().getTime()}`);
                 const globalData = await response.json();
-                mangaData = globalData.mangas;
-                document.getElementById('time-val').innerText = globalData.lastUpdated;
-
-                // 2. Беремо прогрес користувача з бази даних
-                const userDocRef = doc(db, "users", currentUser.uid);
-                const userDoc = await getDoc(userDocRef);
+                
+                // 2. Прогрес глобальних тайтлів
+                const userDoc = await getDoc(doc(db, "users", currentUser.uid));
                 const userProgress = userDoc.exists() ? userDoc.data() : {};
 
-                renderMangas(userProgress);
+                // 3. Особисті додані тайтли
+                const customMangasRef = collection(db, "users", currentUser.uid, "custom_mangas");
+                const customSnap = await getDocs(customMangasRef);
+                const customMangas = [];
+                customSnap.forEach(doc => customMangas.push({ id: doc.id, ...doc.data() }));
+
+                renderCards(globalData.mangas, customMangas, userProgress);
             } catch (error) {
-                console.error("Помилка завантаження даних", error);
+                console.error(error);
             }
         }
 
-        // Відображення карток
-        function renderMangas(userProgress) {
+        function renderCards(globalMangas, customMangas, userProgress) {
             container.innerHTML = ''; 
             
-            mangaData.forEach((manga, index) => {
-                // Шукаємо, чи читав юзер цю манхву раніше (за ім'ям)
+            // Рендер Глобальних
+            globalMangas.forEach((manga, index) => {
                 const currentRead = userProgress[manga.name] || 0;
-                
-                const card = document.createElement('div');
-                card.className = 'tracker-card';
-                card.innerHTML = `
-                    <h3 style="margin-top:0; color:#fff;">${manga.name}</h3>
-                    <div class="platform">
-                        <span style="color: #bb86fc;">Senkuro (Вийшло)</span>
-                        <span style="color: #03dac6; font-weight:bold;">${manga.senkuroChapters}</span>
-                    </div>
-                    <div class="platform">
-                        <span style="color: #bb86fc;">Rutoki (Вийшло)</span>
-                        <span style="color: #03dac6; font-weight:bold;">${manga.rutokiChapters}</span>
-                    </div>
-                    <div class="user-progress">
-                        <span>Прочитано глав:</span>
-                        <div>
-                            <input type="number" id="input-${index}" value="${currentRead}" min="0">
-                            <button class="btn" style="padding: 5px 10px; font-size: 0.9em;" id="save-${index}">Зберегти</button>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
+                createCardHTML(manga.name, manga.senkuroChapters, manga.rutokiChapters, currentRead, `global-${index}`, 'Загальний');
+            });
 
-                // Додаємо обробник для кнопки збереження
-                document.getElementById(`save-${index}`).addEventListener('click', () => saveProgress(manga.name, index));
+            // Рендер Особистих
+            customMangas.forEach((manga, index) => {
+                createCardHTML(manga.name, manga.senkuroChapters, manga.rutokiChapters, manga.currentRead || 0, `custom-${manga.id}`, 'Особистий', true, manga.id);
             });
         }
 
-        // Збереження прогресу в базу даних
-        async function saveProgress(mangaName, index) {
-            const inputValue = document.getElementById(`input-${index}`).value;
-            const btn = document.getElementById(`save-${index}`);
+        function createCardHTML(name, senkuro, rutoki, currentRead, btnId, badgeText, isCustom = false, customDocId = null) {
+            const card = document.createElement('div');
+            card.className = 'tracker-card';
             
-            btn.innerText = '...';
-            
-            try {
-                const userDocRef = doc(db, "users", currentUser.uid);
-                // merge: true оновлює лише одне поле, не затираючи інші тайтли
-                await setDoc(userDocRef, {
-                    [mangaName]: parseInt(inputValue)
-                }, { merge: true });
-                
-                btn.innerText = 'Збережено!';
-                setTimeout(() => btn.innerText = 'Зберегти', 2000);
-            } catch (error) {
-                console.error("Помилка збереження", error);
-                btn.innerText = 'Помилка';
+            let senkuroHTML = senkuro && senkuro !== '...' ? `<div class="platform"><span style="color: #bb86fc;">Senkuro</span><span style="color: #03dac6; font-weight:bold;">${senkuro}</span></div>` : '';
+            let rutokiHTML = rutoki && rutoki !== '...' ? `<div class="platform"><span style="color: #bb86fc;">Rutoki</span><span style="color: #03dac6; font-weight:bold;">${rutoki}</span></div>` : '';
+
+            // Якщо бот ще не просканував
+            if (isCustom && (!senkuroHTML && !rutokiHTML)) {
+                senkuroHTML = `<div class="platform"><span style="color: #888;">Очікування сканування ботом...</span></div>`;
             }
+
+            card.innerHTML = `
+                <h3 style="margin-top:0; color:#fff;">${name} <span class="badge">${badgeText}</span></h3>
+                ${senkuroHTML}
+                ${rutokiHTML}
+                <div class="user-progress">
+                    <span>Прочитано:</span>
+                    <div>
+                        <input type="number" id="input-${btnId}" value="${currentRead}" min="0">
+                        <button class="btn" style="padding: 5px 10px;" id="save-${btnId}">Зберегти</button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+
+            document.getElementById(`save-${btnId}`).addEventListener('click', async () => {
+                const val = document.getElementById(`input-${btnId}`).value;
+                const btn = document.getElementById(`save-${btnId}`);
+                btn.innerText = '...';
+                
+                if (isCustom) {
+                    await setDoc(doc(db, "users", currentUser.uid, "custom_mangas", customDocId), { currentRead: parseInt(val) }, { merge: true });
+                } else {
+                    await setDoc(doc(db, "users", currentUser.uid), { [name]: parseInt(val) }, { merge: true });
+                }
+                btn.innerText = '✓'; setTimeout(() => btn.innerText = 'Зберегти', 1500);
+            });
         }
+
+        // Обробник додавання нового тайтлу
+        saveCustomBtn.addEventListener('click', async () => {
+            const name = document.getElementById('custom-name').value;
+            const senkuro = document.getElementById('custom-senkuro').value;
+            const rutoki = document.getElementById('custom-rutoki').value;
+
+            if (!name) return alert("Назва обов'язкова!");
+            if (!senkuro && !rutoki) return alert("Вкажіть хоча б одне посилання!");
+
+            saveCustomBtn.innerText = "Додаємо...";
+            saveCustomBtn.disabled = true;
+
+            await addDoc(collection(db, "users", currentUser.uid, "custom_mangas"), {
+                name: name,
+                senkuroUrl: senkuro,
+                rutokiUrl: rutoki,
+                senkuroChapters: '...',
+                rutokiChapters: '...',
+                currentRead: 0
+            });
+
+            document.getElementById('custom-name').value = '';
+            document.getElementById('custom-senkuro').value = '';
+            document.getElementById('custom-rutoki').value = '';
+            
+            saveCustomBtn.innerText = "Додати в кабінет";
+            saveCustomBtn.disabled = false;
+            
+            loadAllData(); // Оновлюємо список
+        });
     </script>
 </body>
 </html>
