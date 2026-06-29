@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Трекер Глав</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #121212;
+        color: #e0e0e0;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .container {
+        width: 100%;
+        max-width: 900px;
+      }
+      .header-controls {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      .tracker-card {
+        background-color: #1e1e1e;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        margin-bottom: 20px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      h2 {
+        margin-top: 0;
+        color: #ffffff;
+        text-align: center;
+      }
+      .platform {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #2c2c2c;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 8px;
+        font-size: 1.1rem;
+      }
+      .platform-name {
+        font-weight: 600;
+        color: #bb86fc;
+      }
+      .chapter-count {
+        font-weight: bold;
+        font-size: 1.3rem;
+        color: #03dac6;
+      }
+      .last-updated {
+        font-size: 0.9rem;
+        color: #888;
+        margin-top: 10px;
+      }
+      .update-btn {
+        background-color: #bb86fc;
+        color: #000;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 6px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .update-btn:hover {
+        background-color: #9965f4;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header-controls">
+        <div class="last-updated">
+          Останнє сканування ботом: <span id="time-val">Завантаження...</span>
+        </div>
+        <br />
+        <button class="update-btn" onclick="fetchData()">
+          🔄 Завантажити останні дані
+        </button>
+      </div>
+
+      <div class="grid" id="mangas-container">
+        <!-- Картки будуть додані сюди через JavaScript -->
+      </div>
+    </div>
+
+    <script>
+      // Додаємо timestamp, щоб браузер не кешував старий json
+      async function fetchData() {
+        try {
+          const response = await fetch(`data.json?t=${new Date().getTime()}`);
+          const data = await response.json();
+
+          const container = document.getElementById("mangas-container");
+          container.innerHTML = "";
+
+          data.mangas.forEach((manga) => {
+            container.innerHTML += `
+                        <div class="tracker-card">
+                            <h2>${manga.name}</h2>
+                            <div class="platform">
+                                <span class="platform-name">Senkuro</span>
+                                <span class="chapter-count">${manga.senkuroChapters}</span>
+                            </div>
+                            <div class="platform">
+                                <span class="platform-name">Rutoki</span>
+                                <span class="chapter-count">${manga.rutokiChapters}</span>
+                            </div>
+                        </div>
+                    `;
+          });
+
+          document.getElementById("time-val").innerText = data.lastUpdated;
+        } catch (error) {
+          document.getElementById("mangas-container").innerHTML =
+            '<p style="text-align:center">Дані ще збираються або сталася помилка. Зачекайте першого запуску GitHub Actions.</p>';
+        }
+      }
+
+      fetchData();
+    </script>
+  </body>
+</html>
