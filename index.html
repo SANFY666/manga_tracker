@@ -10,18 +10,41 @@
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .btn { background-color: #bb86fc; color: #000; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn:hover { background-color: #9965f4; }
-        .tracker-card { background-color: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 15px; position: relative; border: 1px solid #333; }
+        
+        .tracker-card { background-color: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #333; transition: 0.3s opacity; }
         .platform { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #333; }
         .platform a { color: #bb86fc; text-decoration: none; font-weight: 500; border-bottom: 1px dashed transparent; transition: 0.2s; }
         .platform a:hover { border-bottom: 1px dashed #bb86fc; }
+        
         .user-progress { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #555; display: flex; align-items: center; justify-content: space-between; }
         .user-progress input { width: 60px; padding: 5px; background: #2c2c2c; color: white; border: 1px solid #555; border-radius: 4px; }
         
         .add-manga-panel { background: #2c2c2c; padding: 20px; border-radius: 12px; margin-bottom: 25px; }
         .add-manga-panel input { width: 100%; box-sizing: border-box; margin-bottom: 10px; padding: 10px; border-radius: 6px; border: 1px solid #555; background: #1e1e1e; color: white; }
         
-        .delete-btn { background-color: #cf6679; color: #000; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: 0.2s; }
-        .delete-btn:hover { background-color: #ff758c; }
+        /* Нові стилі для фільтрів */
+        .filters-panel { background: #1e1e1e; padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center; border: 1px solid #333; flex-wrap: wrap; }
+        .filters-panel input[type="text"] { flex: 1; min-width: 200px; padding: 10px; border-radius: 6px; border: 1px solid #555; background: #2c2c2c; color: white; }
+        .filters-panel label { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #e0e0e0; font-size: 0.95rem; user-select: none; }
+        .filters-panel input[type="checkbox"] { width: 18px; height: 18px; accent-color: #bb86fc; cursor: pointer; }
+
+        /* Нова стильна кнопка видалення */
+        .delete-btn { 
+            background-color: transparent; 
+            color: #cf6679; 
+            border: 1px solid #cf6679; 
+            padding: 6px 12px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 0.85rem; 
+            transition: all 0.2s; 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+            font-weight: 500;
+        }
+        .delete-btn:hover { background-color: #cf6679; color: #000; }
+        .delete-btn svg { width: 16px; height: 16px; }
 
         #login-section, #tracker-section { display: none; }
     </style>
@@ -48,7 +71,16 @@
                 <button class="btn" id="save-custom-btn" style="width: 100%;">Додати в кабінет</button>
             </div>
 
-            <h2 style="border-bottom: 2px solid #bb86fc; padding-bottom: 10px;">Ваш список</h2>
+            <h2 style="border-bottom: 2px solid #bb86fc; padding-bottom: 10px; margin-bottom: 15px;">Ваш список</h2>
+            
+            <div class="filters-panel">
+                <input type="text" id="search-input" placeholder="🔍 Пошук за назвою...">
+                <label>
+                    <input type="checkbox" id="unread-filter"> 
+                    Тільки з непрочитаними главами
+                </label>
+            </div>
+
             <div id="mangas-container"></div>
         </div>
     </div>
@@ -56,10 +88,9 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        // Додано імпорт deleteDoc
         import { getFirestore, doc, setDoc, collection, getDocs, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ВСТАВ СВІЙ FIREBASE CONFIG!
+        // !!! ВСТАВ СВІЙ FIREBASE CONFIG ТУТ !!!
         const firebaseConfig = {
             apiKey: "AIzaSyDTNL0XJRclOR9TF5QCicTTgCDUf4A27M8",
             authDomain: "manga-tracker-a0cf9.firebaseapp.com",
@@ -76,6 +107,7 @@
         const provider = new GoogleAuthProvider();
 
         let currentUser = null;
+        let allCustomMangas = []; // Масив для зберігання всіх тайтлів перед фільтрацією
 
         const loginBtn = document.getElementById('login-btn');
         const logoutBtn = document.getElementById('logout-btn');
@@ -83,9 +115,15 @@
         const loginMessage = document.getElementById('login-message');
         const container = document.getElementById('mangas-container');
         const saveCustomBtn = document.getElementById('save-custom-btn');
+        const searchInput = document.getElementById('search-input');
+        const unreadFilter = document.getElementById('unread-filter');
 
         loginBtn.addEventListener('click', () => signInWithPopup(auth, provider));
         logoutBtn.addEventListener('click', () => signOut(auth));
+
+        // Слухачі для фільтрів
+        searchInput.addEventListener('input', renderFilteredList);
+        unreadFilter.addEventListener('change', renderFilteredList);
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -109,22 +147,49 @@
             try {
                 const customMangasRef = collection(db, "users", currentUser.uid, "custom_mangas");
                 const customSnap = await getDocs(customMangasRef);
-                const customMangas = [];
-                customSnap.forEach(doc => customMangas.push({ id: doc.id, ...doc.data() }));
+                allCustomMangas = [];
+                customSnap.forEach(doc => allCustomMangas.push({ id: doc.id, ...doc.data() }));
 
-                container.innerHTML = '';
-                if(customMangas.length === 0) {
-                    container.innerHTML = '<p style="color:#888;">Ваш список порожній.</p>';
-                    return;
-                }
-
-                customMangas.forEach(manga => {
-                    createCardHTML(manga);
-                });
+                renderFilteredList();
             } catch (error) {
                 console.error(error);
                 container.innerHTML = '<p>Помилка завантаження.</p>';
             }
+        }
+
+        function renderFilteredList() {
+            container.innerHTML = '';
+            
+            const query = searchInput.value.toLowerCase();
+            const onlyUnread = unreadFilter.checked;
+
+            const filteredMangas = allCustomMangas.filter(manga => {
+                // Фільтр пошуку
+                const matchesSearch = manga.name.toLowerCase().includes(query);
+                
+                // Фільтр непрочитаних
+                let matchesUnread = true;
+                if (onlyUnread) {
+                    const senkuroMax = parseInt(manga.senkuroChapters) || 0;
+                    const rutokiMax = parseInt(manga.rutokiChapters) || 0;
+                    const totalChapters = Math.max(senkuroMax, rutokiMax);
+                    const readChapters = manga.currentRead || 0;
+                    matchesUnread = totalChapters > readChapters;
+                }
+
+                return matchesSearch && matchesUnread;
+            });
+
+            if (filteredMangas.length === 0) {
+                if (allCustomMangas.length === 0) {
+                    container.innerHTML = '<p style="color:#888;">Ваш список порожній. Додайте свій перший тайтл вище!</p>';
+                } else {
+                    container.innerHTML = '<p style="color:#888;">За вашими фільтрами нічого не знайдено.</p>';
+                }
+                return;
+            }
+
+            filteredMangas.forEach(manga => createCardHTML(manga));
         }
 
         function createCardHTML(manga) {
@@ -150,11 +215,13 @@
                 </div>`;
             }
 
-            // Додано структуру з кнопкою видалення
             card.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <h3 style="margin-top:0; color:#fff;">${manga.name}</h3>
-                    <button class="delete-btn" id="delete-${manga.id}" title="Видалити тайтл">❌</button>
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                    <h3 style="margin:0; color:#fff;">${manga.name}</h3>
+                    <button class="delete-btn" id="delete-${manga.id}" title="Видалити тайтл">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        Видалити
+                    </button>
                 </div>
                 ${senkuroHTML}
                 ${rutokiHTML}
@@ -168,7 +235,7 @@
             `;
             container.appendChild(card);
 
-            // Обробник збереження прогресу
+            // Обробник збереження
             document.getElementById(`save-${manga.id}`).addEventListener('click', async () => {
                 const val = document.getElementById(`input-${manga.id}`).value;
                 const btn = document.getElementById(`save-${manga.id}`);
@@ -176,25 +243,36 @@
                 
                 await setDoc(doc(db, "users", currentUser.uid, "custom_mangas", manga.id), { currentRead: parseInt(val) }, { merge: true });
                 
+                // Оновлюємо локальний масив, щоб фільтр відразу знав нове значення
+                const index = allCustomMangas.findIndex(m => m.id === manga.id);
+                if (index !== -1) allCustomMangas[index].currentRead = parseInt(val);
+                
                 btn.innerText = '✓'; 
-                setTimeout(() => btn.innerText = 'Зберегти', 1500);
+                setTimeout(() => {
+                    btn.innerText = 'Зберегти';
+                    // Якщо ввімкнено фільтр "Непрочитані", і ми щойно дочитали останню главу — перемальовуємо список
+                    if (unreadFilter.checked) renderFilteredList();
+                }, 1000);
             });
 
-            // Обробник видалення тайтлу
+            // Обробник видалення
             document.getElementById(`delete-${manga.id}`).addEventListener('click', async () => {
-                if (confirm(`Ви впевнені, що хочете видалити "${manga.name}" зі свого списку?`)) {
+                if (confirm(`Видалити "${manga.name}" зі списку?`)) {
                     try {
                         const btn = document.getElementById(`delete-${manga.id}`);
-                        btn.innerText = '...';
+                        btn.innerText = 'Видалення...';
                         
                         await deleteDoc(doc(db, "users", currentUser.uid, "custom_mangas", manga.id));
                         
-                        // Плавно приховуємо та видаляємо картку з екрана
-                        card.style.opacity = '0.5';
-                        setTimeout(() => card.remove(), 300);
+                        // Видаляємо з локального масиву
+                        allCustomMangas = allCustomMangas.filter(m => m.id !== manga.id);
+                        
+                        // Анімація зникнення
+                        card.style.opacity = '0';
+                        setTimeout(() => renderFilteredList(), 300);
                         
                     } catch (error) {
-                        console.error("Помилка видалення:", error);
+                        console.error("Помилка:", error);
                         alert("Не вдалося видалити тайтл.");
                     }
                 }
