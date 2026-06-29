@@ -13,7 +13,7 @@ const mangasConfig = [
 
 (async () => {
   console.log("Запуск браузера...");
-  const browser = await puppeteer.launch({ headless: "new" });
+  const browser = await puppeteer.launch({ headless: 'new' });
   const page = await browser.newPage();
 
   // Блокуємо завантаження картинок і стилів для швидкості
