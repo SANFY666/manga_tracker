@@ -3,22 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manga Tracker</title>
+    <title>Трекер Глав / Manga Tracker</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
         .container { max-width: 900px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .top-controls { display: flex; align-items: center; gap: 15px; }
         
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
-        .header-controls { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
-        
-        /* Стилі для перемикача мов */
-        .lang-switch { display: flex; gap: 5px; background: #2c2c2c; padding: 4px; border-radius: 6px; border: 1px solid #333; }
-        .lang-btn { background: transparent; color: #888; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.85rem; transition: 0.2s; }
-        .lang-btn:hover { color: #e0e0e0; }
-        .lang-btn.active { background: #bb86fc; color: #000; }
-
         .btn { background-color: #bb86fc; color: #000; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn:hover { background-color: #9965f4; }
+        
+        .lang-select { background: #2c2c2c; color: #fff; border: 1px solid #555; padding: 8px; border-radius: 6px; cursor: pointer; outline: none; font-size: 0.95rem; }
         
         .tracker-card { background-color: #1e1e1e; padding: 20px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #333; transition: 0.3s opacity; }
         .platform { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #333; }
@@ -36,11 +31,7 @@
         .filters-panel label { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #e0e0e0; font-size: 0.95rem; user-select: none; }
         .filters-panel input[type="checkbox"] { width: 18px; height: 18px; accent-color: #bb86fc; cursor: pointer; }
 
-        .delete-btn { 
-            background-color: transparent; color: #cf6679; border: 1px solid #cf6679; padding: 6px 12px; 
-            border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; 
-            display: flex; align-items: center; gap: 6px; font-weight: 500;
-        }
+        .delete-btn { background-color: transparent; color: #cf6679; border: 1px solid #cf6679; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; display: flex; align-items: center; gap: 6px; font-weight: 500; }
         .delete-btn:hover { background-color: #cf6679; color: #000; }
         .delete-btn svg { width: 16px; height: 16px; }
 
@@ -51,40 +42,38 @@
 
     <div class="container">
         <div class="header">
-            <h2 id="app-title" style="margin: 0;">📚 Манхва Трекер</h2>
-            
-            <div class="header-controls">
-                <div class="lang-switch">
-                    <button class="lang-btn active" data-lang="uk">UA</button>
-                    <button class="lang-btn" data-lang="en">EN</button>
-                    <button class="lang-btn" data-lang="ru">RU</button>
-                </div>
-                
+            <h2 data-i18n="title">📚 Манхва Трекер</h2>
+            <div class="top-controls">
+                <select id="lang-switcher" class="lang-select">
+                    <option value="uk">Українська</option>
+                    <option value="en">English</option>
+                    <option value="ru">Русский</option>
+                </select>
                 <div id="auth-controls">
-                    <button class="btn" id="login-btn">Увійти через Google</button>
-                    <button class="btn" id="logout-btn" style="display:none;">Вийти</button>
+                    <button class="btn" id="login-btn" data-i18n="loginBtn">Увійти через Google</button>
+                    <button class="btn" id="logout-btn" style="display:none;" data-i18n="logoutBtn">Вийти</button>
                 </div>
             </div>
         </div>
 
-        <div id="login-message">Будь ласка, авторизуйтесь, щоб бачити свій прогрес та додавати тайтли.</div>
+        <div id="login-message" data-i18n="loginMessage">Будь ласка, авторизуйтесь, щоб бачити свій прогрес та додавати тайтли.</div>
 
         <div id="tracker-section">
             <div class="add-manga-panel">
-                <h3 id="add-section-title" style="margin-top: 0;">➕ Додати власний тайтл</h3>
-                <input type="text" id="custom-name" placeholder="Назва манхви (обов'язково)">
-                <input type="url" id="custom-senkuro" placeholder="Посилання на Senkuro (якщо є)">
-                <input type="url" id="custom-rutoki" placeholder="Посилання на Rutoki (якщо є)">
-                <button class="btn" id="save-custom-btn" style="width: 100%;">Додати в кабінет</button>
+                <h3 data-i18n="addTitlePanel">➕ Додати власний тайтл</h3>
+                <input type="text" id="custom-name" data-i18n-placeholder="namePlaceholder" placeholder="Назва манхви (обов'язково)">
+                <input type="url" id="custom-senkuro" data-i18n-placeholder="senkuroPlaceholder" placeholder="Посилання на Senkuro (якщо є)">
+                <input type="url" id="custom-rutoki" data-i18n-placeholder="rutokiPlaceholder" placeholder="Посилання на Rutoki (якщо є)">
+                <button class="btn" id="save-custom-btn" style="width: 100%;" data-i18n="addBtn">Додати в кабінет</button>
             </div>
 
-            <h2 id="list-title" style="border-bottom: 2px solid #bb86fc; padding-bottom: 10px; margin-bottom: 15px;">Ваш список</h2>
+            <h2 style="border-bottom: 2px solid #bb86fc; padding-bottom: 10px; margin-bottom: 15px;" data-i18n="yourList">Ваш список</h2>
             
             <div class="filters-panel">
-                <input type="text" id="search-input" placeholder="🔍 Пошук за назвою...">
+                <input type="text" id="search-input" data-i18n-placeholder="searchPlaceholder" placeholder="🔍 Пошук за назвою...">
                 <label>
                     <input type="checkbox" id="unread-filter"> 
-                    <span id="unread-label-text">Тільки з непрочитаними главами</span>
+                    <span data-i18n="unreadFilter">Тільки з непрочитаними главами</span>
                 </label>
             </div>
 
@@ -113,98 +102,59 @@
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
 
-        // ----------------- СЛОВНИК ПЕРЕКЛАДІВ -----------------
+        // СЛОВНИК ПЕРЕКЛАДІВ
         const translations = {
             uk: {
-                appTitle: "📚 Манхва Трекер", loginBtn: "Увійти через Google", logoutBtn: "Вийти",
-                loginMsg: "Будь ласка, авторизуйтесь, щоб бачити свій прогрес та додавати тайтли.",
-                addSection: "➕ Додати власний тайтл", phName: "Назва манхви (обов'язково)",
-                phSenkuro: "Посилання на Senkuro (якщо є)", phRutoki: "Посилання на Rutoki (якщо є)",
-                saveCustomBtn: "Додати в кабінет", listTitle: "Ваш список", phSearch: "🔍 Пошук за назвою...",
+                title: "📚 Манхва Трекер", loginBtn: "Увійти через Google", logoutBtn: "Вийти",
+                loginMessage: "Будь ласка, авторизуйтесь, щоб бачити свій прогрес та додавати тайтли.",
+                addTitlePanel: "➕ Додати власний тайтл", namePlaceholder: "Назва манхви (обов'язково)",
+                senkuroPlaceholder: "Посилання на Senkuro (якщо є)", rutokiPlaceholder: "Посилання на Rutoki (якщо є)",
+                addBtn: "Додати в кабінет", yourList: "Ваш список", searchPlaceholder: "🔍 Пошук за назвою...",
                 unreadFilter: "Тільки з непрочитаними главами", loading: "Завантаження даних...",
                 emptyList: "Ваш список порожній. Додайте свій перший тайтл вище!",
-                notFound: "За вашими фільтрами нічого не знайдено.", loadError: "Помилка завантаження.",
-                wait: "Очікування...", read: "Прочитано:", save: "Зберегти", delete: "Видалити",
-                deleting: "Видалення...", adding: "Додаємо...", reqName: "Назва обов'язкова!",
-                reqLink: "Вкажіть хоча б одне посилання!", errDel: "Не вдалося видалити тайтл.",
-                confirmDel: 'Видалити "{name}" зі списку?'
+                nothingFound: "За вашими фільтрами нічого не знайдено.", errorLoad: "Помилка завантаження.",
+                waitScan: "Очікування...", read: "Прочитано:", saveBtn: "Зберегти", deleteBtn: "Видалити",
+                alertName: "Назва обов'язкова!", alertLink: "Вкажіть хоча б одне посилання!",
+                adding: "Додаємо...", saving: "...", saved: "✓", confirmDelete: 'Видалити "{name}" зі списку?',
+                deleting: "Видалення...", errorDelete: "Не вдалося видалити тайтл."
             },
             en: {
-                appTitle: "📚 Manga Tracker", loginBtn: "Sign in with Google", logoutBtn: "Sign out",
-                loginMsg: "Please sign in to see your progress and add titles.",
-                addSection: "➕ Add custom title", phName: "Title (required)",
-                phSenkuro: "Senkuro link (optional)", phRutoki: "Rutoki link (optional)",
-                saveCustomBtn: "Add to library", listTitle: "Your list", phSearch: "🔍 Search by title...",
-                unreadFilter: "Only unread chapters", loading: "Loading data...",
+                title: "📚 Manga Tracker", loginBtn: "Sign in with Google", logoutBtn: "Sign out",
+                loginMessage: "Please log in to see your progress and add titles.",
+                addTitlePanel: "➕ Add Custom Title", namePlaceholder: "Manga Title (required)",
+                senkuroPlaceholder: "Senkuro Link (optional)", rutokiPlaceholder: "Rutoki Link (optional)",
+                addBtn: "Add to Library", yourList: "Your List", searchPlaceholder: "🔍 Search by title...",
+                unreadFilter: "Only with unread chapters", loading: "Loading data...",
                 emptyList: "Your list is empty. Add your first title above!",
-                notFound: "Nothing found with your filters.", loadError: "Loading error.",
-                wait: "Waiting...", read: "Read:", save: "Save", delete: "Delete",
-                deleting: "Deleting...", adding: "Adding...", reqName: "Title is required!",
-                reqLink: "Provide at least one link!", errDel: "Failed to delete title.",
-                confirmDel: 'Delete "{name}" from the list?'
+                nothingFound: "Nothing found for your filters.", errorLoad: "Error loading data.",
+                waitScan: "Waiting...", read: "Read:", saveBtn: "Save", deleteBtn: "Delete",
+                alertName: "Title is required!", alertLink: "Provide at least one link!",
+                adding: "Adding...", saving: "...", saved: "✓", confirmDelete: 'Delete "{name}" from the list?',
+                deleting: "Deleting...", errorDelete: "Failed to delete title."
             },
             ru: {
-                appTitle: "📚 Манхва Трекер", loginBtn: "Войти через Google", logoutBtn: "Выйти",
-                loginMsg: "Пожалуйста, авторизуйтесь, чтобы видеть свой прогресс и добавлять тайтлы.",
-                addSection: "➕ Добавить свой тайтл", phName: "Название (обязательно)",
-                phSenkuro: "Ссылка на Senkuro (если есть)", phRutoki: "Ссылка на Rutoki (если есть)",
-                saveCustomBtn: "Добавить в кабинет", listTitle: "Ваш список", phSearch: "🔍 Поиск по названию...",
-                unreadFilter: "Только непрочитанные главы", loading: "Загрузка данных...",
+                title: "📚 Манхва Трекер", loginBtn: "Войти через Google", logoutBtn: "Выйти",
+                loginMessage: "Пожалуйста, авторизуйтесь, чтобы видеть свой прогресс и добавлять тайтлы.",
+                addTitlePanel: "➕ Добавить свой тайтл", namePlaceholder: "Название манхвы (обязательно)",
+                senkuroPlaceholder: "Ссылка на Senkuro (если есть)", rutokiPlaceholder: "Ссылка на Rutoki (если есть)",
+                addBtn: "Добавить в кабинет", yourList: "Ваш список", searchPlaceholder: "🔍 Поиск по названию...",
+                unreadFilter: "Только с непрочитанными главами", loading: "Загрузка данных...",
                 emptyList: "Ваш список пуст. Добавьте свой первый тайтл выше!",
-                notFound: "По вашим фильтрам ничего не найдено.", loadError: "Ошибка загрузки.",
-                wait: "Ожидание...", read: "Прочитано:", save: "Сохранить", delete: "Удалить",
-                deleting: "Удаление...", adding: "Добавление...", reqName: "Название обязательно!",
-                reqLink: "Укажите хотя бы одну ссылку!", errDel: "Не удалось удалить тайтл.",
-                confirmDel: 'Удалить "{name}" из списка?'
+                nothingFound: "По вашим фильтрам ничего не найдено.", errorLoad: "Ошибка загрузки.",
+                waitScan: "Ожидание...", read: "Прочитано:", saveBtn: "Сохранить", deleteBtn: "Удалить",
+                alertName: "Название обязательно!", alertLink: "Укажите хотя бы одну ссылку!",
+                adding: "Добавление...", saving: "...", saved: "✓", confirmDelete: 'Удалить "{name}" из списка?',
+                deleting: "Удаление...", errorDelete: "Не удалось удалить тайтл."
             }
         };
 
-        let currentLang = localStorage.getItem('mangaTrackerLang') || 'uk';
-
-        function t(key, params = {}) {
-            let text = translations[currentLang][key] || key;
-            for (const [k, v] of Object.entries(params)) { text = text.replace(`{${k}}`, v); }
-            return text;
-        }
-
-        function updateLangUI() {
-            document.getElementById('app-title').innerText = t('appTitle');
-            document.getElementById('login-btn').innerText = t('loginBtn');
-            document.getElementById('logout-btn').innerText = t('logoutBtn');
-            document.getElementById('login-message').innerText = t('loginMsg');
-            document.getElementById('add-section-title').innerText = t('addSection');
-            document.getElementById('custom-name').placeholder = t('phName');
-            document.getElementById('custom-senkuro').placeholder = t('phSenkuro');
-            document.getElementById('custom-rutoki').placeholder = t('phRutoki');
-            document.getElementById('save-custom-btn').innerText = t('saveCustomBtn');
-            document.getElementById('list-title').innerText = t('listTitle');
-            document.getElementById('search-input').placeholder = t('phSearch');
-            document.getElementById('unread-label-text').innerText = t('unreadFilter');
-            
-            document.querySelectorAll('.lang-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.getAttribute('data-lang') === currentLang);
-            });
-
-            // Перемальовуємо список, щоб оновити тексти в картках
-            if (currentUser) renderFilteredList();
-        }
-
-        // Зміна мови по кліку
-        document.querySelectorAll('.lang-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                currentLang = e.target.getAttribute('data-lang');
-                localStorage.setItem('mangaTrackerLang', currentLang);
-                updateLangUI();
-            });
-        });
-
-        // Ініціалізація мови при завантаженні
-        updateLangUI();
-        // -------------------------------------------------------
-
+        let currentLang = localStorage.getItem('appLang') || 'uk';
+        let t = translations[currentLang];
         let currentUser = null;
         let allCustomMangas = [];
 
+        // Елементи DOM
+        const langSwitcher = document.getElementById('lang-switcher');
         const loginBtn = document.getElementById('login-btn');
         const logoutBtn = document.getElementById('logout-btn');
         const trackerSection = document.getElementById('tracker-section');
@@ -214,8 +164,36 @@
         const searchInput = document.getElementById('search-input');
         const unreadFilter = document.getElementById('unread-filter');
 
+        // Ініціалізація мови
+        langSwitcher.value = currentLang;
+        updateLanguageUI();
+
+        langSwitcher.addEventListener('change', (e) => {
+            currentLang = e.target.value;
+            localStorage.setItem('appLang', currentLang);
+            t = translations[currentLang];
+            updateLanguageUI();
+            if (currentUser) renderFilteredList(); // Перемальовуємо картки новою мовою
+        });
+
+        function updateLanguageUI() {
+            // Оновлюємо текст
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (t[key]) el.textContent = t[key];
+            });
+            // Оновлюємо плейсхолдери
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (t[key]) el.placeholder = t[key];
+            });
+            document.documentElement.lang = currentLang;
+        }
+
+        // Авторизація
         loginBtn.addEventListener('click', () => signInWithPopup(auth, provider));
         logoutBtn.addEventListener('click', () => signOut(auth));
+
         searchInput.addEventListener('input', renderFilteredList);
         unreadFilter.addEventListener('change', renderFilteredList);
 
@@ -237,7 +215,7 @@
         });
 
         async function loadPersonalData() {
-            container.innerHTML = `<p>${t('loading')}</p>`;
+            container.innerHTML = `<p>${t.loading}</p>`;
             try {
                 const customMangasRef = collection(db, "users", currentUser.uid, "custom_mangas");
                 const customSnap = await getDocs(customMangasRef);
@@ -247,12 +225,11 @@
                 renderFilteredList();
             } catch (error) {
                 console.error(error);
-                container.innerHTML = `<p>${t('loadError')}</p>`;
+                container.innerHTML = `<p>${t.errorLoad}</p>`;
             }
         }
 
         function renderFilteredList() {
-            if (!currentUser) return; // Уникаємо перемальовування, якщо користувач не увійшов
             container.innerHTML = '';
             
             const query = searchInput.value.toLowerCase();
@@ -265,17 +242,16 @@
                     const senkuroMax = parseInt(manga.senkuroChapters) || 0;
                     const rutokiMax = parseInt(manga.rutokiChapters) || 0;
                     const totalChapters = Math.max(senkuroMax, rutokiMax);
-                    const readChapters = manga.currentRead || 0;
-                    matchesUnread = totalChapters > readChapters;
+                    matchesUnread = totalChapters > (manga.currentRead || 0);
                 }
                 return matchesSearch && matchesUnread;
             });
 
             if (filteredMangas.length === 0) {
                 if (allCustomMangas.length === 0) {
-                    container.innerHTML = `<p style="color:#888;">${t('emptyList')}</p>`;
+                    container.innerHTML = `<p style="color:#888;">${t.emptyList}</p>`;
                 } else {
-                    container.innerHTML = `<p style="color:#888;">${t('notFound')}</p>`;
+                    container.innerHTML = `<p style="color:#888;">${t.nothingFound}</p>`;
                 }
                 return;
             }
@@ -290,7 +266,7 @@
             
             let senkuroHTML = '';
             if (manga.senkuroUrl) {
-                let ch = manga.senkuroChapters && manga.senkuroChapters !== '...' ? manga.senkuroChapters : t('wait');
+                let ch = manga.senkuroChapters && manga.senkuroChapters !== '...' ? manga.senkuroChapters : t.waitScan;
                 senkuroHTML = `<div class="platform">
                     <a href="${manga.senkuroUrl}" target="_blank">Senkuro 🔗</a>
                     <span style="color: #03dac6; font-weight:bold;">${ch}</span>
@@ -299,7 +275,7 @@
 
             let rutokiHTML = '';
             if (manga.rutokiUrl) {
-                let ch = manga.rutokiChapters && manga.rutokiChapters !== '...' ? manga.rutokiChapters : t('wait');
+                let ch = manga.rutokiChapters && manga.rutokiChapters !== '...' ? manga.rutokiChapters : t.waitScan;
                 rutokiHTML = `<div class="platform">
                     <a href="${manga.rutokiUrl}" target="_blank">Rutoki 🔗</a>
                     <span style="color: #03dac6; font-weight:bold;">${ch}</span>
@@ -309,56 +285,58 @@
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                     <h3 style="margin:0; color:#fff;">${manga.name}</h3>
-                    <button class="delete-btn" id="delete-${manga.id}" title="${t('delete')}">
+                    <button class="delete-btn" id="delete-${manga.id}" title="${t.deleteBtn}">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                        <span>${t('delete')}</span>
+                        ${t.deleteBtn}
                     </button>
                 </div>
                 ${senkuroHTML}
                 ${rutokiHTML}
                 <div class="user-progress">
-                    <span>${t('read')}</span>
+                    <span>${t.read}</span>
                     <div>
                         <input type="number" id="input-${manga.id}" value="${manga.currentRead || 0}" min="0">
-                        <button class="btn" style="padding: 5px 10px;" id="save-${manga.id}">${t('save')}</button>
+                        <button class="btn" style="padding: 5px 10px;" id="save-${manga.id}">${t.saveBtn}</button>
                     </div>
                 </div>
             `;
             container.appendChild(card);
 
+            // Збереження
             document.getElementById(`save-${manga.id}`).addEventListener('click', async () => {
                 const val = document.getElementById(`input-${manga.id}`).value;
                 const btn = document.getElementById(`save-${manga.id}`);
-                btn.innerText = '...';
+                btn.innerText = t.saving;
                 
                 await setDoc(doc(db, "users", currentUser.uid, "custom_mangas", manga.id), { currentRead: parseInt(val) }, { merge: true });
                 
                 const index = allCustomMangas.findIndex(m => m.id === manga.id);
                 if (index !== -1) allCustomMangas[index].currentRead = parseInt(val);
                 
-                btn.innerText = '✓'; 
+                btn.innerText = t.saved; 
                 setTimeout(() => {
-                    btn.innerText = t('save');
+                    btn.innerText = t.saveBtn;
                     if (unreadFilter.checked) renderFilteredList();
                 }, 1000);
             });
 
+            // Видалення
             document.getElementById(`delete-${manga.id}`).addEventListener('click', async () => {
-                if (confirm(t('confirmDel', {name: manga.name}))) {
+                const confirmText = t.confirmDelete.replace('{name}', manga.name);
+                if (confirm(confirmText)) {
                     try {
                         const btn = document.getElementById(`delete-${manga.id}`);
-                        btn.innerHTML = `<span>${t('deleting')}</span>`;
+                        btn.innerText = t.deleting;
                         
                         await deleteDoc(doc(db, "users", currentUser.uid, "custom_mangas", manga.id));
-                        
                         allCustomMangas = allCustomMangas.filter(m => m.id !== manga.id);
                         
                         card.style.opacity = '0';
                         setTimeout(() => renderFilteredList(), 300);
                         
                     } catch (error) {
-                        console.error("Помилка:", error);
-                        alert(t('errDel'));
+                        console.error(error);
+                        alert(t.errorDelete);
                     }
                 }
             });
@@ -369,10 +347,10 @@
             const senkuro = document.getElementById('custom-senkuro').value;
             const rutoki = document.getElementById('custom-rutoki').value;
 
-            if (!name) return alert(t('reqName'));
-            if (!senkuro && !rutoki) return alert(t('reqLink'));
+            if (!name) return alert(t.alertName);
+            if (!senkuro && !rutoki) return alert(t.alertLink);
 
-            saveCustomBtn.innerText = t('adding');
+            saveCustomBtn.innerText = t.adding;
             saveCustomBtn.disabled = true;
 
             await addDoc(collection(db, "users", currentUser.uid, "custom_mangas"), {
@@ -389,7 +367,7 @@
             document.getElementById('custom-senkuro').value = '';
             document.getElementById('custom-rutoki').value = '';
             
-            saveCustomBtn.innerText = t('saveCustomBtn');
+            saveCustomBtn.innerText = t.addBtn;
             saveCustomBtn.disabled = false;
             
             loadPersonalData(); 
