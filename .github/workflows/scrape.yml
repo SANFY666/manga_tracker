@@ -24,6 +24,8 @@ jobs:
         run: npm install
 
       - name: Run Scraper
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: node scraper.js
 
       - name: Commit and Push data.json
