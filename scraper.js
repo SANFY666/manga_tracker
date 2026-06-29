@@ -1,113 +1,91 @@
-const puppeteer = require("puppeteer");
-const fs = require("fs");
+const puppeteer = require('puppeteer');
+const fs = require('fs');
+const admin = require('firebase-admin');
 
+// Підключення до Firebase за допомогою ключа з GitHub Secrets
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+const db = admin.firestore();
+
+// Твій глобальний список (як і раніше)
 const mangasConfig = [
-    {
-        name: 'Raising Villains',
-        senkuro: 'https://senkuro.com/manga/raising-villains-the-right-way/chapters',
-        rutoki: 'https://rutoki.com/manga/nm4700573'
-    },
-    {
-        name: 'Guide to Beating Weaklings Tower',
-        senkuro: 'https://senkuro.com/manga/how-to-conquer-the-tower-of-hanamja/chapters',
-        rutoki: 'https://rutoki.com/manga/dy5526578'
-    },
-    {
-        name: 'The Demon King Has Many Heroes',
-        senkuro: 'https://senkuro.com/manga/the-demon-king-overrun-by-heroes/chapters',
-        rutoki: 'https://rutoki.com/manga/rp5453562'
-    },
-    {
-        name: 'Eleceed',
-        senkuro: 'https://senkuro.com/manga/illegsideu/chapters',
-        rutoki: 'https://rutoki.com/manga/nz333558'
-    },
-    {
-        name: 'Pick Me Up!',
-        senkuro: 'https://senkuro.com/manga/pick-me-up/chapters',
-        rutoki: 'https://rutoki.com/manga/oq1837559'
-    },
-    {
-        name: 'The Villain Wants to Live',
-        senkuro: 'https://senkuro.com/manga/a-villain-s-will-to-survive/chapters',
-        rutoki: 'https://rutoki.com/manga/pv4298569'
-    }
-    
-    // Додавай сюди стільки блоків, скільки потрібно (хоч 10, хоч 50)
+    { name: 'Raising Villains', senkuro: 'https://senkuro.com/manga/raising-villains-the-right-way/chapters', rutoki: 'https://rutoki.com/manga/nm4700573' }
 ];
 
 (async () => {
-  console.log("Запуск браузера...");
-  const browser = await puppeteer.launch({ 
-    headless: true, 
-    args: ['--no-sandbox', '--disable-setuid-sandbox'] 
-});
-  const page = await browser.newPage();
-
-  // Блокуємо завантаження картинок і стилів для швидкості
-  await page.setRequestInterception(true);
-  page.on("request", (req) => {
-    if (["image", "stylesheet", "font"].includes(req.resourceType())) {
-      req.abort();
-    } else {
-      req.continue();
-    }
-  });
-
-  const results = [];
-
-  for (const manga of mangasConfig) {
-    console.log(`Сканування: ${manga.name}`);
-    let senkuroText = "Помилка";
-    let rutokiText = "Помилка";
-
-    try {
-      await page.goto(manga.senkuro, {
-        waitUntil: "domcontentloaded",
-        timeout: 30000,
-      });
-      const senkuroSelector =
-        "#app > div > section > div.container > div > section > article.project-stats > div > div:nth-child(3) > div.project-stats__body > div.project-stats__name";
-      await page.waitForSelector(senkuroSelector, { timeout: 10000 });
-      senkuroText = await page.$eval(senkuroSelector, (el) =>
-        el.textContent.trim(),
-      );
-    } catch (e) {
-      console.log("Не вдалося знайти Senkuro");
-    }
-
-    try {
-      await page.goto(manga.rutoki, {
-        waitUntil: "domcontentloaded",
-        timeout: 30000,
-      });
-      const rutokiSelector = "#c-c-mm-i-r-read > div";
-      await page.waitForSelector(rutokiSelector, { timeout: 10000 });
-      let rawRutoki = await page.$eval(rutokiSelector, (el) =>
-        el.textContent.trim(),
-      );
-      const rutokiMatch = rawRutoki.match(/\d+/);
-      if (rutokiMatch) rutokiText = rutokiMatch[0];
-    } catch (e) {
-      console.log("Не вдалося знайти Rutoki");
-    }
-
-    results.push({
-      name: manga.name,
-      senkuroChapters: senkuroText,
-      rutokiChapters: rutokiText,
+    console.log('Запуск браузера...');
+    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const page = await browser.newPage();
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+        if(['image', 'stylesheet', 'font'].includes(req.resourceType())) req.abort();
+        else req.continue();
     });
-  }
 
-  await browser.close();
+    // 1. ОНОВЛЕННЯ ГЛОБАЛЬНИХ ТАЙТЛІВ (data.json)
+    const results = [];
+    for (const manga of mangasConfig) {
+        let senkuroText = 'Помилка', rutokiText = 'Помилка';
+        try {
+            await page.goto(manga.senkuro, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.waitForSelector('.project-stats__name', { timeout: 10000 });
+            senkuroText = await page.$eval('#app > div > section > div.container > div > section > article.project-stats > div > div:nth-child(3) > div.project-stats__body > div.project-stats__name', el => el.textContent.trim());
+        } catch (e) {}
 
-  const data = {
-    mangas: results,
-    lastUpdated: new Date().toLocaleString("uk-UA", {
-      timeZone: "Europe/Kyiv",
-    }),
-  };
+        try {
+            await page.goto(manga.rutoki, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.waitForSelector('#c-c-mm-i-r-read > div', { timeout: 10000 });
+            let rawRutoki = await page.$eval('#c-c-mm-i-r-read > div', el => el.textContent.trim());
+            const match = rawRutoki.match(/\d+/);
+            if (match) rutokiText = match[0];
+        } catch (e) {}
 
-  fs.writeFileSync("data.json", JSON.stringify(data, null, 2));
-  console.log("Дані успішно збережено у data.json");
+        results.push({ name: manga.name, senkuroChapters: senkuroText, rutokiChapters: rutokiText });
+    }
+    fs.writeFileSync('data.json', JSON.stringify({ mangas: results, lastUpdated: new Date().toLocaleString('uk-UA') }, null, 2));
+    console.log('Глобальні дані оновлено!');
+
+    // 2. ОНОВЛЕННЯ ОСОБИСТИХ ТАЙТЛІВ КОРИСТУВАЧІВ З FIREBASE
+    console.log('Починаємо сканування особистих тайтлів...');
+    const usersSnap = await db.collection('users').get();
+    
+    for (const userDoc of usersSnap.docs) {
+        const customMangasRef = userDoc.ref.collection('custom_mangas');
+        const customMangasSnap = await customMangasRef.get();
+
+        for (const mangaDoc of customMangasSnap.docs) {
+            const manga = mangaDoc.data();
+            let senkuroText = manga.senkuroChapters || '...';
+            let rutokiText = manga.rutokiChapters || '...';
+
+            if (manga.senkuroUrl && manga.senkuroUrl.includes('senkuro.com')) {
+                try {
+                    await page.goto(manga.senkuroUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+                    await page.waitForSelector('.project-stats__name', { timeout: 5000 });
+                    senkuroText = await page.$eval('#app > div > section > div.container > div > section > article.project-stats > div > div:nth-child(3) > div.project-stats__body > div.project-stats__name', el => el.textContent.trim());
+                } catch(e) { console.log(`Помилка Senkuro для ${manga.name}`); }
+            }
+
+            if (manga.rutokiUrl && manga.rutokiUrl.includes('rutoki.com')) {
+                try {
+                    await page.goto(manga.rutokiUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+                    await page.waitForSelector('#c-c-mm-i-r-read > div', { timeout: 5000 });
+                    let raw = await page.$eval('#c-c-mm-i-r-read > div', el => el.textContent.trim());
+                    const match = raw.match(/\d+/);
+                    if (match) rutokiText = match[0];
+                } catch(e) { console.log(`Помилка Rutoki для ${manga.name}`); }
+            }
+
+            // Записуємо нові глави назад в базу користувачу
+            await mangaDoc.ref.update({
+                senkuroChapters: senkuroText,
+                rutokiChapters: rutokiText
+            });
+        }
+    }
+
+    await browser.close();
+    console.log('Скрипт успішно завершено!');
 })();
