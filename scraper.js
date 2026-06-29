@@ -2,13 +2,22 @@ const puppeteer = require("puppeteer");
 const fs = require("fs");
 
 const mangasConfig = [
-  {
-    name: "Raising Villains",
-    senkuro:
-      "https://senkuro.com/manga/raising-villains-the-right-way/chapters",
-    rutoki: "https://rutoki.com/manga/nm4700573",
-  },
-  // Додавай нові тайтли сюди, через кому
+    {
+        name: 'Raising Villains',
+        senkuro: 'https://senkuro.com/manga/raising-villains-the-right-way/chapters',
+        rutoki: 'https://rutoki.com/manga/nm4700573'
+    },
+    {
+        name: 'Guide to Beating the Weaklings Tower',
+        senkuro: 'https://senkuro.com/manga/how-to-conquer-the-tower-of-hanamja/chapters',
+        rutoki: 'https://rutoki.com/manga/dy5526578'
+    },
+    {
+        name: 'The Demon King Has Too Many Heroes',
+        senkuro: 'https://senkuro.com/manga/the-demon-king-overrun-by-heroes/chapters',
+        rutoki: 'https://rutoki.com/manga/rp5453562'
+    }
+    // Додавай сюди стільки блоків, скільки потрібно (хоч 10, хоч 50)
 ];
 
 (async () => {
