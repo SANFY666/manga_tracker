@@ -489,69 +489,42 @@
             fetchCatalog(document.getElementById('catalog-search').value);
         });
 
-        async function fetchCatalog(query = '') {
+        async function fetchCatalog() {
             const catContainer = document.getElementById('catalog-container');
             catContainer.innerHTML = `<p style="grid-column: 1/-1;">${t.loading}</p>`;
             
             try {
-                // Створюємо цільовий URL
-                let targetUrl = 'https://api.mangadex.org/manga?includes[]=cover_art&limit=12&contentRating[]=safe&contentRating[]=suggestive';
-                if (query) targetUrl += `&title=${encodeURIComponent(query)}`;
-
-                // ВИПРАВЛЕННЯ: Використовуємо надійніший проксі AllOrigins
-                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
-
-                const res = await fetch(proxyUrl);
-                
-                // Перевіряємо, чи успішна відповідь
-                if (!res.ok) throw new Error('Помилка сервера проксі');
-                
+                // Беремо дані з файлу, який створив бот
+                const res = await fetch(`catalog.json?t=${new Date().getTime()}`);
                 const data = await res.json();
 
                 catContainer.innerHTML = '';
-                if(!data.data || data.data.length === 0) {
-                    catContainer.innerHTML = `<p style="grid-column: 1/-1;">${t.nothingFound}</p>`;
-                    return;
-                }
-
                 data.data.forEach(manga => {
-                    const title = manga.attributes.title.en || manga.attributes.title.ru || Object.values(manga.attributes.title)[0] || 'Unknown';
+                    const title = manga.attributes.title.en || Object.values(manga.attributes.title)[0];
                     const coverRel = manga.relationships.find(r => r.type === 'cover_art');
-                    const coverFileName = coverRel ? coverRel.attributes.fileName : null;
-                    const coverUrl = coverFileName ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg` : 'https://via.placeholder.com/256x360.png?text=No+Cover';
+                    const coverUrl = coverRel ? `https://uploads.mangadex.org/covers/${manga.id}/${coverRel.attributes.fileName}.256.jpg` : '';
                     
-                    const dexUrl = `https://mangadex.org/title/${manga.id}`;
-                    const latestChapter = manga.attributes.lastChapter || '...';
-
                     const card = document.createElement('div');
                     card.className = 'catalog-card';
                     card.innerHTML = `
-                        <img src="${coverUrl}" alt="Cover" class="catalog-cover" loading="lazy">
+                        <img src="${coverUrl}" class="catalog-cover">
                         <div class="catalog-info">
-                            <div>
-                                <h4 class="catalog-title" title="${title}">${title}</h4>
-                            </div>
-                            <div class="catalog-actions">
-                                <a href="${dexUrl}" target="_blank" class="btn" style="text-align:center; text-decoration:none; background:#333; color:#fff; font-size:0.9rem;">📖 ${t.readOnDex}</a>
-                                <button class="btn" style="font-size:0.9rem;" id="track-${manga.id}">➕ ${t.trackThis}</button>
-                            </div>
+                            <h4 class="catalog-title">${title}</h4>
+                            <button class="btn" id="track-${manga.id}">${t.trackThis}</button>
                         </div>
                     `;
                     catContainer.appendChild(card);
-
-                    document.getElementById(`track-${manga.id}`).addEventListener('click', async (e) => {
-                        e.target.innerText = t.adding;
-                        e.target.disabled = true;
+                    
+                    document.getElementById(`track-${manga.id}`).onclick = async () => {
                         await addDoc(collection(db, "users", currentUser.uid, "custom_mangas"), {
-                            name: title, dexUrl: dexUrl, dexChapters: latestChapter, currentRead: 0, lastChecked: Date.now()
+                            name: title, dexUrl: `https://mangadex.org/title/${manga.id}`, currentRead: 0
                         });
-                        e.target.innerText = t.saved;
-                        loadPersonalData(); 
-                    });
+                        alert('Додано!');
+                        loadPersonalData();
+                    };
                 });
             } catch (error) {
-                console.error(error);
-                catContainer.innerHTML = `<p style="grid-column: 1/-1;">${t.errorLoad}</p>`;
+                catContainer.innerHTML = `<p>${t.errorLoad}</p>`;
             }
         }
     </script>
