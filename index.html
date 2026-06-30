@@ -498,10 +498,14 @@
                 let targetUrl = 'https://api.mangadex.org/manga?includes[]=cover_art&limit=12&contentRating[]=safe&contentRating[]=suggestive';
                 if (query) targetUrl += `&title=${encodeURIComponent(query)}`;
 
-                // Використовуємо corsproxy.io для безпечного завантаження
-                const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+                // ВИПРАВЛЕННЯ: Додано обов'язковий параметр url= згідно з документацією corsproxy
+                const proxyUrl = 'https://corsproxy.io/?url=' + encodeURIComponent(targetUrl);
 
                 const res = await fetch(proxyUrl);
+                
+                // Перевіряємо, чи не повернув проксі сторінку з помилкою
+                if (!res.ok) throw new Error('Помилка сервера проксі');
+                
                 const data = await res.json();
 
                 catContainer.innerHTML = '';
