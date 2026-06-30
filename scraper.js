@@ -64,6 +64,18 @@ async function runAll() {
     });
     fs.writeFileSync('catalog.json', catalogData);
 
+    // Після створення catalog.json додайте цей блок для Git:
+    const { execSync } = require('child_process');
+    console.log('Зберігаємо catalog.json в репозиторій...');
+    execSync('git config user.name "github-actions[bot]"');
+    execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+    execSync('git add catalog.json');
+    execSync('git commit -m "Автоматичне оновлення каталогу"');
+    execSync('git push');
+
+    await browser.close();
+    console.log('Все успішно завершено!');
+
     await browser.close();
     console.log('Все успішно завершено!');
 }
