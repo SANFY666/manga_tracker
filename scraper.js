@@ -1,20 +1,14 @@
 const puppeteer = require('puppeteer');
 const admin = require('firebase-admin');
-const fs = require('fs');
-const https = require('https');
-const { execSync } = require('child_process');
 
-async function runAll() {
-    console.log('Запуск головної функції...');
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+const db = admin.firestore();
 
-    // 1. Ініціалізація Firebase
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
-    const db = admin.firestore();
-
-    // 2. Налаштування Puppeteer
+(async () => {
+    console.log('Запуск браузера...');
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     const page = await browser.newPage();
     await page.setRequestInterception(true);
@@ -23,9 +17,14 @@ async function runAll() {
         else req.continue();
     });
 
-    // 3. Сканування тайтлів
-    console.log('Починаємо сканування тайтлів...');
+    console.log('Починаємо сканування тайтлів користувачів...');
+    
+    // Нова команда: шукає всі тайтли у всіх користувачів напряму
     const customMangasSnap = await db.collectionGroup('custom_mangas').get();
+    
+    if (customMangasSnap.empty) {
+        console.log('Жодного тайтлу не знайдено.');
+    }
     
     for (const mangaDoc of customMangasSnap.docs) {
         const manga = mangaDoc.data();
@@ -33,61 +32,44 @@ async function runAll() {
         let rutokiText = manga.rutokiChapters || '...';
         
         const now = Date.now();
-        if (now - (manga.lastChecked || 0) < 7200000 && (senkuroText !== '...' || rutokiText !== '...')) continue;
+        const lastChecked = manga.lastChecked || 0;
+        
+        // Перевірка 2-годинного інтервалу
+        if (now - lastChecked < 7200000 && (senkuroText !== '...' || rutokiText !== '...')) {
+            console.log(`⏳ Пропускаємо "${manga.name}" (оновлювалось менше 2 годин тому)`);
+            continue;
+        }
 
-        if (manga.senkuroUrl?.includes('senkuro.com')) {
+        console.log(`🔍 Скануємо: "${manga.name}"`);
+
+        if (manga.senkuroUrl && manga.senkuroUrl.includes('senkuro.com')) {
             try {
                 await page.goto(manga.senkuroUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+                await page.waitForSelector('.project-stats__name', { timeout: 5000 });
                 senkuroText = await page.$eval('#app > div > section > div.container > div > section > article.project-stats > div > div:nth-child(3) > div.project-stats__body > div.project-stats__name', el => el.textContent.trim());
-            } catch(e) {}
+            } catch(e) { console.log(`Помилка Senkuro для ${manga.name}`); }
         }
-        if (manga.rutokiUrl?.includes('rutoki.com')) {
+
+        if (manga.rutokiUrl && manga.rutokiUrl.includes('rutoki.com')) {
             try {
                 await page.goto(manga.rutokiUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+                await page.waitForSelector('#c-c-mm-i-r-read > div', { timeout: 5000 });
                 let raw = await page.$eval('#c-c-mm-i-r-read > div', el => el.textContent.trim());
                 const match = raw.match(/\d+/);
                 if (match) rutokiText = match[0];
-            } catch(e) {}
+            } catch(e) { console.log(`Помилка Rutoki для ${manga.name}`); }
         }
-        await mangaDoc.ref.update({ senkuroChapters: senkuroText, rutokiChapters: rutokiText, lastChecked: now });
-    }
 
-    // 4. Оновлення каталогу з MangaDex
-    console.log('Оновлюємо catalog.json...');
-    const catalogUrl = 'https://api.mangadex.org/manga?includes[]=cover_art&limit=12&contentRating[]=safe';
-    const options = { headers: { 'User-Agent': 'MangaTrackerBot/1.0' } };
-
-    const catalogData = await new Promise((resolve) => {
-        https.get(catalogUrl, options, (res) => {
-            let data = '';
-            res.on('data', (c) => data += c);
-            res.on('end', () => resolve(data));
-        }).on('error', () => resolve(''));
-    });
-
-    if (catalogData.trim().startsWith('{')) {
-        fs.writeFileSync('catalog.json', catalogData);
+        // Записуємо нові глави в базу
+        await mangaDoc.ref.update({
+            senkuroChapters: senkuroText,
+            rutokiChapters: rutokiText,
+            lastChecked: now
+        });
         
-        // 5. Зберігаємо файл у репозиторій
-        console.log('Зберігаємо catalog.json в репозиторій...');
-        execSync('git config user.name "github-actions[bot]"');
-        execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
-        execSync('git add catalog.json');
-        try {
-            execSync('git commit -m "Автоматичне оновлення каталогу"');
-            execSync('git push');
-        } catch(e) {
-            console.log('Немає змін для коміту.');
-        }
-    } else {
-        console.log('Помилка: отримано некоректні дані, catalog.json не оновлено.');
+        console.log(`✅ Успішно оновлено: "${manga.name}"`);
     }
 
     await browser.close();
-    console.log('Все успішно завершено!');
-}
-
-runAll().catch(err => {
-    console.error(err);
-    process.exit(1);
-});
+    console.log('Скрипт успішно завершено!');
+})();
