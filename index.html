@@ -265,7 +265,7 @@
                 renderFilteredList();
                 renderNotifications();
                 renderProfile();
-                if(document.getElementById('catalog').classList.contains('active')) fetchCatalog();
+                if(document.getElementById('catalog').classList.contains('active')) fetchCatalog(document.getElementById('catalog-search').value);
             }
         });
 
@@ -374,7 +374,7 @@
             };
             addLink(manga.senkuroUrl, 'Senkuro', manga.senkuroChapters);
             addLink(manga.rutokiUrl, 'Rutoki', manga.rutokiChapters);
-            addLink(manga.dexUrl, 'MangaDex', manga.dexChapters); // Підтримка MangaDex
+            addLink(manga.dexUrl, 'MangaDex', manga.dexChapters); 
 
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
@@ -494,29 +494,28 @@
             catContainer.innerHTML = `<p style="grid-column: 1/-1;">${t.loading}</p>`;
             
             try {
-                // Базовий URL для пошуку манги. includes[]=cover_art необхідний для отримання обкладинки
-                let url = 'https://api.mangadex.org/manga?includes[]=cover_art&limit=12&contentRating[]=safe&contentRating[]=suggestive';
-                if (query) url += `&title=${encodeURIComponent(query)}`;
+                // Створюємо цільовий URL
+                let targetUrl = 'https://api.mangadex.org/manga?includes[]=cover_art&limit=12&contentRating[]=safe&contentRating[]=suggestive';
+                if (query) targetUrl += `&title=${encodeURIComponent(query)}`;
 
-                const res = await fetch(url);
+                // Використовуємо corsproxy.io для безпечного завантаження
+                const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
+
+                const res = await fetch(proxyUrl);
                 const data = await res.json();
 
                 catContainer.innerHTML = '';
-                if(data.data.length === 0) {
+                if(!data.data || data.data.length === 0) {
                     catContainer.innerHTML = `<p style="grid-column: 1/-1;">${t.nothingFound}</p>`;
                     return;
                 }
 
                 data.data.forEach(manga => {
-                    // Витягуємо назву (шукаємо англійську, російську або першу доступну)
                     const title = manga.attributes.title.en || manga.attributes.title.ru || Object.values(manga.attributes.title)[0] || 'Unknown';
-                    
-                    // Витягуємо обкладинку
                     const coverRel = manga.relationships.find(r => r.type === 'cover_art');
                     const coverFileName = coverRel ? coverRel.attributes.fileName : null;
                     const coverUrl = coverFileName ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFileName}.256.jpg` : 'https://via.placeholder.com/256x360.png?text=No+Cover';
                     
-                    // Посилання для читання
                     const dexUrl = `https://mangadex.org/title/${manga.id}`;
                     const latestChapter = manga.attributes.lastChapter || '...';
 
@@ -536,7 +535,6 @@
                     `;
                     catContainer.appendChild(card);
 
-                    // Додавання в базу даних з Каталогу
                     document.getElementById(`track-${manga.id}`).addEventListener('click', async (e) => {
                         e.target.innerText = t.adding;
                         e.target.disabled = true;
@@ -544,7 +542,7 @@
                             name: title, dexUrl: dexUrl, dexChapters: latestChapter, currentRead: 0, lastChecked: Date.now()
                         });
                         e.target.innerText = t.saved;
-                        loadPersonalData(); // Оновлюємо бібліотеку
+                        loadPersonalData(); 
                     });
                 });
             } catch (error) {
