@@ -73,3 +73,24 @@ const db = admin.firestore();
     await browser.close();
     console.log('Скрипт успішно завершено!');
 })();
+
+// Додай це в кінець scraper.js
+const fs = require('fs');
+const https = require('https');
+
+async function updateCatalog() {
+    console.log('Оновлюємо каталог з MangaDex...');
+    const url = 'https://api.mangadex.org/manga?includes[]=cover_art&limit=12&contentRating[]=safe';
+    
+    https.get(url, (res) => {
+        let data = '';
+        res.on('data', (chunk) => data += chunk);
+        res.on('end', () => {
+            fs.writeFileSync('catalog.json', data);
+            console.log('Каталог успішно збережено в catalog.json');
+        });
+    }).on('error', (err) => console.log('Помилка оновлення каталогу: ' + err.message));
+}
+
+// Виклич цю функцію в кінці скрипта
+await updateCatalog();
